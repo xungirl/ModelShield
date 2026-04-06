@@ -54,8 +54,8 @@ class PQCryptoSimulator:
 
     @staticmethod
     def decrypt(ciphertext: bytes, encrypted: bytes, secret_key: bytes) -> bytes:
-        """模拟解密"""
-        key = hashlib.sha256(secret_key[:32]).digest()
+        """模拟解密（ciphertext 中存储了加密密钥）"""
+        key = ciphertext  # encrypt 时 ciphertext = sha256(public_key)
         decrypted = bytes(e ^ key[i % len(key)] for i, e in enumerate(encrypted))
         return decrypted
 

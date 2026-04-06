@@ -6,6 +6,9 @@ torch
 torchvision
 numpy
 
+# Image / Video
+opencv-python-headless
+
 # Utils
 Pillow
 reportlab

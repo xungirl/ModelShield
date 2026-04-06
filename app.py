@@ -13,11 +13,20 @@ import os
 import io
 import numpy as np
 
+import cv2
+
 from config import MODELS_DIR, CERTS_DIR, WATERMARKED_DIR, DATA_DIR
 from core.watermark import embed_watermark, extract_watermark, verify_ownership
 from core.crypto import PostQuantumCrypto, generate_certificate, save_keys, load_keys
 from core.sandbox import run_in_sandbox, get_sandbox_info
 from core.ledger import add_record, verify_chain, get_all_records, search_records
+from core.media_watermark import (
+    embed_invisible_watermark, extract_invisible_watermark,
+    apply_visible_watermark, generate_fingerprint, process_video_watermark,
+)
+from core.distribution import (
+    register_distribution, trace_leak, get_all_distributions, get_distribution_stats,
+)
 
 # ========== 页面配置 ==========
 st.set_page_config(
@@ -118,6 +127,8 @@ page = st.sidebar.radio(
     "功能导航",
     [
         "🏠 首页概览",
+        "🎬 影视文件保护",
+        "🔍 泄露溯源",
         "🔏 模型水印",
         "🔐 加密签名",
         "📋 权属证书",
@@ -130,10 +141,12 @@ st.sidebar.markdown("---")
 st.sidebar.markdown(
     """
     **技术栈**
+    - 🎬 DCT频域隐式水印
     - 🔏 权重级无损水印
     - 🔐 ML-KEM / ML-DSA
     - 🏗️ 进程隔离沙箱
     - ⛓️ 哈希链存证
+    - 🔍 分发指纹溯源
     """
 )
 
@@ -144,13 +157,19 @@ if page == "🏠 首页概览":
 
     st.markdown("### 平台简介")
     st.markdown("""
-    ModelShield 为AI模型提供从**出生证明**到**身份护照**的全链路产权保护：
+    ModelShield 为 **AI模型** 和 **影视源文件** 提供全链路产权保护：
 
-    1. **权重级无损水印** — 将唯一标识嵌入模型参数，精度零影响，不可移除
-    2. **抗量子加密（ML-KEM）** — 后量子安全的模型加密，未来量子计算机也无法破解
-    3. **后量子签名（ML-DSA）** — 生成具有法律效力的电子权属证书
-    4. **推理沙箱** — 模型在安全环境中运行，防止被提取和逆向
-    5. **哈希链存证** — 不可篡改的确权时间戳，链式验证保证完整性
+    **🎬 影视文件保护**
+    1. **源文件加密（ML-KEM）** — 加密后无法下载、转发、爬虫抓取，抗量子计算破解
+    2. **隐式水印（DCT频域）** — 肉眼不可见的分发指纹，嵌入每一份分发副本
+    3. **显式水印触发** — 被盗时铺满画面的 DNA 身份证，宣示所有权
+    4. **泄露溯源** — 提取指纹 → 追溯首发平台 / 首个 IP → 维权举证
+
+    **🤖 AI模型保护**
+    5. **权重级无损水印** — 将唯一标识嵌入模型参数，精度零影响
+    6. **后量子签名（ML-DSA）** — 生成具有法律效力的电子权属证书
+    7. **推理沙箱** — 模型在安全环境中运行，防止被提取和逆向
+    8. **哈希链存证** — 不可篡改的确权时间戳，链式验证保证完整性
     """)
 
     # 统计卡片
@@ -169,7 +188,20 @@ if page == "🏠 首页概览":
         st.metric("📋 已颁发证书", len(cert_files))
 
     # 流程图
-    st.markdown("### 保护流程")
+    st.markdown("### 影视文件保护流程")
+    st.markdown("""
+    ```
+    源文件上传 → ML-KEM加密（防下载/转发/爬虫）
+        │
+        ├─ 分发副本A → 嵌入指纹A（抖音/IP_A）→ 存证上链
+        ├─ 分发副本B → 嵌入指纹B（B站/IP_B）→ 存证上链
+        └─ 分发副本C → 嵌入指纹C（YouTube/IP_C）→ 存证上链
+                                    │
+                           发现泄露文件 → 提取指纹 → 比对数据库 → 定位泄露源
+    ```
+    """)
+
+    st.markdown("### AI模型保护流程")
     st.markdown("""
     ```
     模型上传 → 水印嵌入 → PQ加密 → 权属签名 → 哈希链存证 → 颁发证书
@@ -177,6 +209,282 @@ if page == "🏠 首页概览":
        └────────────── 验证归属 ← 水印提取 ← 签名验签 ←─────────┘
     ```
     """)
+
+
+# ========== 影视文件保护 ==========
+elif page == "🎬 影视文件保护":
+    st.markdown("## 🎬 影视文件产权保护")
+    st.markdown("为影视源文件提供加密、隐式水印、显式水印全链路保护。")
+
+    tab1, tab2, tab3 = st.tabs(["隐式水印（防盗溯源）", "显式水印（DNA身份证）", "文件加密"])
+
+    with tab1:
+        st.markdown("### 隐式水印嵌入")
+        st.markdown("基于 DCT 频域变换，将分发指纹嵌入画面，**肉眼完全不可见**，但可提取用于溯源。")
+
+        uploaded_img = st.file_uploader("上传图片", type=["jpg", "jpeg", "png", "bmp"], key="inv_upload")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            inv_platform = st.selectbox("分发平台", ["抖音", "B站", "YouTube", "微信", "微博", "自定义"], key="inv_platform")
+            if inv_platform == "自定义":
+                inv_platform = st.text_input("输入平台名", key="inv_custom_platform")
+        with col2:
+            inv_ip = st.text_input("接收方IP", value="192.168.1.100", key="inv_ip")
+            inv_user = st.text_input("接收方用户ID", value="user_001", key="inv_user")
+
+        if uploaded_img and st.button("🔏 嵌入隐式水印", type="primary", key="btn_inv_wm"):
+            with st.spinner("正在嵌入隐式水印..."):
+                # 读取图片
+                file_bytes = np.frombuffer(uploaded_img.read(), dtype=np.uint8)
+                image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+
+                # 生成指纹
+                fingerprint = generate_fingerprint(inv_platform, inv_ip, inv_user)
+
+                # 嵌入
+                watermarked = embed_invisible_watermark(image, fingerprint)
+
+                # 计算质量指标
+                psnr = cv2.PSNR(image, watermarked)
+
+                # 保存
+                save_name = f"invisible_{inv_platform}_{inv_user}.png"
+                save_path = os.path.join(WATERMARKED_DIR, save_name)
+                cv2.imwrite(save_path, watermarked)
+
+                # 登记分发
+                file_hash = hashlib.sha256(file_bytes.tobytes()).hexdigest()
+                dist_record = register_distribution(
+                    file_name=uploaded_img.name,
+                    file_hash=file_hash,
+                    platform=inv_platform,
+                    ip_address=inv_ip,
+                    user_id=inv_user,
+                    fingerprint=fingerprint,
+                )
+
+            st.success("✅ 隐式水印嵌入成功！指纹已登记。")
+
+            # 对比展示
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("**原始图片**")
+                st.image(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), use_container_width=True)
+            with col2:
+                st.markdown("**含隐式水印（肉眼无差别）**")
+                st.image(cv2.cvtColor(watermarked, cv2.COLOR_BGR2RGB), use_container_width=True)
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("PSNR（图像质量）", f"{psnr:.1f} dB", help="越高越好，>35dB 人眼无法区分")
+            with col2:
+                st.metric("嵌入指纹长度", f"{len(fingerprint)} 字符")
+            with col3:
+                st.metric("分发平台", inv_platform)
+
+            st.markdown("**嵌入的指纹信息：**")
+            st.code(fingerprint)
+
+            st.markdown("**分发记录：**")
+            st.json(dist_record)
+
+            st.session_state["last_media_image"] = image
+            st.session_state["last_media_watermarked"] = watermarked
+            st.session_state["last_media_fingerprint"] = fingerprint
+            st.session_state["last_media_path"] = save_path
+
+    with tab2:
+        st.markdown("### 显式水印 — DNA身份证")
+        st.markdown("当文件被盗时触发，**红色水印铺满整个画面**，宣示所有权。")
+
+        uploaded_vis = st.file_uploader("上传图片", type=["jpg", "jpeg", "png", "bmp"], key="vis_upload")
+
+        vis_owner = st.text_input("版权声明文字", value="COPYRIGHT OWNER_NAME 2024", key="vis_owner")
+        vis_opacity = st.slider("水印不透明度", 0.1, 0.8, 0.3, 0.05, key="vis_opacity")
+
+        if uploaded_vis and st.button("🛑 触发显式水印", type="primary", key="btn_vis_wm"):
+            with st.spinner("生成显式水印..."):
+                file_bytes = np.frombuffer(uploaded_vis.read(), dtype=np.uint8)
+                image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+
+                # 铺满显式水印
+                visible_wm = apply_visible_watermark(image, vis_owner, vis_opacity, tile=True)
+
+                save_name = f"visible_watermarked.png"
+                save_path = os.path.join(WATERMARKED_DIR, save_name)
+                cv2.imwrite(save_path, visible_wm)
+
+            st.success("✅ 显式水印已生成！")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("**原始画面**")
+                st.image(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), use_container_width=True)
+            with col2:
+                st.markdown("**被盗触发效果 — DNA身份证**")
+                st.image(cv2.cvtColor(visible_wm, cv2.COLOR_BGR2RGB), use_container_width=True)
+
+            st.markdown("""
+            > 当检测到未授权传播时，系统自动触发显式水印覆盖画面，
+            > 水印包含所有者信息，作为影视作品的**DNA身份证**，
+            > 使盗版内容无法正常使用。
+            """)
+
+    with tab3:
+        st.markdown("### 源文件加密")
+        st.markdown("使用后量子加密（ML-KEM）保护源文件，加密后**无法下载、转发、被爬虫抓取**。")
+
+        uploaded_enc = st.file_uploader("上传要加密的文件", type=["jpg", "jpeg", "png", "mp4", "mov", "avi"], key="enc_media_upload")
+
+        if uploaded_enc and st.button("🔐 加密源文件", type="primary", key="btn_enc_media"):
+            crypto = PostQuantumCrypto()
+
+            with st.spinner("加密中..."):
+                raw_data = uploaded_enc.read()
+                original_size = len(raw_data)
+                original_hash = hashlib.sha256(raw_data).hexdigest()
+
+                # 生成临时密钥对
+                pub, sec = crypto.generate_kem_keypair()
+
+                # 加密
+                ciphertext, encrypted = crypto.encrypt_model(raw_data, pub)
+
+                # 保存
+                enc_path = os.path.join(WATERMARKED_DIR, uploaded_enc.name + ".enc")
+                with open(enc_path, "wb") as f:
+                    f.write(encrypted)
+
+                # 存证
+                add_record({
+                    "type": "media_encryption",
+                    "file_name": uploaded_enc.name,
+                    "file_hash": original_hash,
+                    "algorithm": crypto.KEM_ALGORITHM,
+                })
+
+            st.success("✅ 源文件加密成功！")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("原始文件", f"{original_size/1024:.1f} KB")
+                st.metric("文件哈希", original_hash[:20] + "...")
+            with col2:
+                st.metric("加密文件", f"{len(encrypted)/1024:.1f} KB")
+                st.metric("加密算法", crypto.KEM_ALGORITHM)
+
+            st.markdown("""
+            **加密保护效果：**
+            | 威胁 | 防护 |
+            |------|------|
+            | 直接下载 | ❌ 加密文件无法直接打开 |
+            | 转发传播 | ❌ 无密钥无法解密 |
+            | 爬虫抓取 | ❌ 抓到的是密文，无法使用 |
+            | 量子计算破解 | ❌ ML-KEM 抗量子安全 |
+            """)
+
+            # 演示：加密前后对比
+            st.markdown("### 加密效果演示")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("**原始文件（可正常查看）**")
+                if uploaded_enc.type.startswith("image"):
+                    st.image(raw_data, use_container_width=True)
+                else:
+                    st.info(f"原始文件：{uploaded_enc.name}")
+            with col2:
+                st.markdown("**加密后（完全不可读）**")
+                # 将密文前1024字节可视化为噪声图
+                noise_size = min(len(encrypted), 10000)
+                noise = np.frombuffer(encrypted[:noise_size], dtype=np.uint8)
+                side = int(np.sqrt(noise_size))
+                noise_img = noise[:side*side].reshape(side, side)
+                st.image(noise_img, use_container_width=True, caption="加密后的文件内容（密文噪声）")
+
+
+# ========== 泄露溯源 ==========
+elif page == "🔍 泄露溯源":
+    st.markdown("## 🔍 泄露溯源追踪")
+    st.markdown("从泄露文件中提取隐式指纹，追溯到**首个发布平台**和**首个IP地址**。")
+
+    tab1, tab2 = st.tabs(["指纹提取与溯源", "分发记录查询"])
+
+    with tab1:
+        st.markdown("### 从泄露文件中提取指纹")
+
+        leaked_img = st.file_uploader("上传疑似泄露的图片", type=["jpg", "jpeg", "png", "bmp"], key="leak_upload")
+
+        fp_length = st.number_input("指纹长度（字符数）", value=50, min_value=10, max_value=100, key="fp_len",
+                                     help="需要与嵌入时的指纹长度一致")
+
+        if leaked_img and st.button("🔍 提取指纹并溯源", type="primary", key="btn_trace"):
+            with st.spinner("提取指纹中..."):
+                file_bytes = np.frombuffer(leaked_img.read(), dtype=np.uint8)
+                image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+
+                # 提取隐式水印
+                extracted = extract_invisible_watermark(image, fp_length)
+
+            st.markdown("### 提取结果")
+            st.code(f"提取的指纹：{extracted}")
+
+            # 溯源
+            with st.spinner("正在比对分发记录..."):
+                report = trace_leak(extracted)
+
+            if report["found"]:
+                st.error("🚨 找到泄露源头！")
+
+                st.markdown(f"### 溯源结论")
+                st.markdown(f"**{report['conclusion']}**")
+
+                if report.get("exact_match"):
+                    st.markdown("### 精确匹配的分发记录")
+                    st.json(report["exact_match"])
+
+                if report.get("fuzzy_matches"):
+                    st.markdown("### 相似度匹配结果")
+                    for i, m in enumerate(report["fuzzy_matches"]):
+                        with st.expander(f"匹配 #{i+1} — 相似度 {m['similarity']*100:.1f}% — {m['platform']}"):
+                            st.json(m)
+            else:
+                st.warning("未找到匹配的分发记录。可能是未经本平台分发的文件。")
+
+            # 溯源流程图
+            st.markdown("### 溯源流程")
+            st.markdown("""
+            ```
+            泄露文件 → DCT频域分析 → 提取隐式指纹 → 比对分发数据库
+                                                        ↓
+                                              定位首发平台 + IP地址
+                                                        ↓
+                                              生成溯源报告（可用于维权）
+            ```
+            """)
+
+    with tab2:
+        st.markdown("### 所有分发记录")
+        distributions = get_all_distributions()
+
+        if not distributions:
+            st.info("暂无分发记录。请先在「影视文件保护」中嵌入水印并分发。")
+        else:
+            stats = get_distribution_stats()
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("总分发次数", stats["total"])
+            with col2:
+                st.metric("覆盖平台数", len(stats["platforms"]))
+
+            st.markdown("**各平台分发统计：**")
+            for platform, count in stats["platforms"].items():
+                st.markdown(f"- **{platform}**: {count} 次")
+
+            st.markdown("---")
+            for d in distributions:
+                with st.expander(f"{d['timestamp']} — {d['platform']} — {d['user_id']}"):
+                    st.json(d)
 
 
 # ========== 模型水印 ==========
