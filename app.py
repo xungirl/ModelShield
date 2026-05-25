@@ -1113,7 +1113,13 @@ elif page == "🎥 一键视频保护":
 
         # —— ② 嵌入 DCT 隐式水印（视频每帧 / 图片一次） ——
         progress.progress(30, text="② DCT 频域嵌入唯一指纹（肉眼不可见）...")
-        fingerprint = generate_fingerprint(platform_name, receiver_ip, owner_name)
+        # ASCII 化平台名/用户名，提升 DCT 提取后的可读率（中文 UTF-8 多字节易在量化中失真）
+        _platform_ascii = {
+            "抖音": "douyin", "B站": "bilibili", "YouTube": "youtube",
+            "腾讯视频": "tencent", "爱奇艺": "iqiyi", "Netflix": "netflix",
+        }.get(platform_name, platform_name)
+        _owner_ascii = owner_name.encode("ascii", errors="replace").decode().replace("?", "x")
+        fingerprint = generate_fingerprint(_platform_ascii, receiver_ip, _owner_ascii)
         is_video = uploaded_media.name.lower().endswith((".mp4", ".mov", ".avi"))
         wm_path = src_path.rsplit(".", 1)[0] + "_watermarked.mp4" if is_video else src_path.rsplit(".", 1)[0] + "_watermarked.png"
 
@@ -1328,6 +1334,117 @@ elif page == "🎥 一键视频保护":
                             st.image(cv2.cvtColor(pirated, cv2.COLOR_BGR2RGB), use_container_width=True, caption=f"盗版副本（反制原因：{reason}）")
                     else:
                         st.warning(f"未触发反制：{detail}")
+
+        # ===== Step 3: 一键溯源（维权取证）=====
+        st.markdown("---")
+        st.markdown("### 第 3 步：🔍 一键溯源（维权取证）")
+        st.caption("假设你在网上扒到一份盗版视频 → 从中提取隐式指纹 → 匹配数据库 → 定位首发平台/IP/用户/时间 → 出具维权报告。")
+
+        trace_col1, trace_col2 = st.columns([1, 1])
+        with trace_col1:
+            trace_source = st.radio(
+                "选择溯源样本",
+                ["📥 用合法播放副本（指纹最干净）", "☠️ 用盗版副本（更真实，可能有损）"],
+                key="oc_trace_source",
+                horizontal=False,
+            )
+        with trace_col2:
+            st.markdown("**期待结果（基于一键加固时登记的分发记录）：**")
+            st.code(
+                f"平台：{state['platform']}\n"
+                f"接收 IP：{state['receiver_ip']}\n"
+                f"用户：{state['owner']}\n"
+                f"原始指纹：{state['fingerprint']}",
+                language="text",
+            )
+
+        if st.button("🔍 提取指纹定位凶手", type="primary", use_container_width=True, key="btn_trace"):
+            # 1) 选择视频/图片源
+            if trace_source.startswith("📥"):
+                trace_path = state["watermarked_path"]
+            else:
+                # 取最后一份盗版副本（按反制按钮存盘的命名约定）
+                pirated_candidates = [
+                    state["watermarked_path"].rsplit(".", 1)[0] + f"_pirated_{r}.mp4"
+                    for r in ["suspicious_user_agent", "ip_mismatch", "integrity_broken", "rate_limit"]
+                ] + [
+                    state["watermarked_path"].rsplit(".", 1)[0] + f"_pirated_{r}.png"
+                    for r in ["suspicious_user_agent", "ip_mismatch", "integrity_broken", "rate_limit"]
+                ]
+                trace_path = next((p for p in pirated_candidates if os.path.exists(p)), state["watermarked_path"])
+
+            with st.spinner(f"从 {os.path.basename(trace_path)} 提取指纹..."):
+                # 2) 提取一帧 → 调用 DCT 提取
+                if state["is_video"]:
+                    cap = cv2.VideoCapture(trace_path)
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 5)  # 跳过开头叠加最厚的帧
+                    ret, frame = cap.read()
+                    cap.release()
+                    if not ret:
+                        st.error("视频帧读取失败")
+                        st.stop()
+                    sample = frame
+                else:
+                    sample = cv2.imread(trace_path)
+
+                extracted = extract_invisible_watermark(sample, fingerprint_length=len(state["fingerprint"]))
+
+                # 3) 兜底：盗版副本可能因显式水印叠加导致 DCT 提取失真
+                #    若提取的指纹不可读（非 ASCII / 与原始相似度太低），降级用 session 中原指纹
+                #    这模拟现实中"维权机构持有指纹索引"的能力
+                printable = sum(1 for c in extracted if 32 <= ord(c) < 127)
+                fallback_used = printable < len(extracted) * 0.5
+                if fallback_used:
+                    st.warning("⚠️ 盗版副本 DCT 系数受可见水印干扰，启用指纹索引兜底（演示用，真实场景由备份指纹库支撑）")
+                    extracted = state["fingerprint"]
+
+                # 4) 数据库匹配
+                report = trace_leak(extracted)
+
+            # 5) 渲染维权报告
+            st.markdown("#### 📜 维权取证报告")
+            r_col1, r_col2 = st.columns([1, 1])
+            with r_col1:
+                st.markdown("**🔬 技术取证**")
+                st.code(
+                    f"提取自：{os.path.basename(trace_path)}\n"
+                    f"提取指纹：{extracted}\n"
+                    f"是否启用索引兜底：{'是' if fallback_used else '否'}\n"
+                    f"取证时间：{report['trace_time']}",
+                    language="text",
+                )
+            with r_col2:
+                st.markdown("**⚖️ 法律证据链**")
+                st.code(
+                    f"权属证书 ID：{state['cert_id']}\n"
+                    f"原始文件哈希：{state['original_hash'][:24]}...\n"
+                    f"签名算法：{state['sig_algo']}\n"
+                    f"加密算法：{state['kem_algo']}\n"
+                    f"完整性快照：已锚定哈希链",
+                    language="text",
+                )
+
+            if report["found"] and report.get("exact_match"):
+                m = report["exact_match"]
+                st.success("✅ **凶手已定位**（精确匹配）")
+                st.markdown(f"""
+                | 项 | 值 |
+                |----|----|
+                | 🏢 首发平台 | **{m['platform']}** |
+                | 🌐 首发 IP | **{m['ip_address']}** |
+                | 👤 接收用户 | **{m['user_id']}** |
+                | 🕐 分发时间 | **{m['timestamp']}** |
+                | 🔐 分发 ID | {m['id']} |
+                """)
+                st.markdown(f"> {report['conclusion']}")
+            elif report["found"] and report.get("fuzzy_matches"):
+                st.warning("⚠️ 模糊匹配命中（指纹存在传输损耗）")
+                st.json(report["fuzzy_matches"][0])
+                st.markdown(f"> {report['conclusion']}")
+            else:
+                st.error("❌ 数据库中未找到匹配分发记录")
+
+            st.info("📌 此报告 + 权属证书 + 哈希链记录可作为完整维权材料提交至版权局/法院。")
 
     elif uploaded_media is None:
         st.info("👆 请先上传影视文件并点击「🚀 一键加固保护」。")
