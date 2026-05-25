@@ -1,5 +1,5 @@
 ---
-title: ModelShield 模盾
+title: 寰宇OS · ModelShield
 emoji: 🛡️
 colorFrom: blue
 colorTo: purple
@@ -9,6 +9,548 @@ app_file: app.py
 pinned: false
 ---
 
-# ModelShield 模盾
+# 寰宇OS · ModelShield
 
-AI模型全生命周期产权保护平台
+**影视IP全栈解决方案** + **AI模型全生命周期产权保护平台**
+
+为影视源文件筑起 **4 层防线**：加密锁死下载转发、隐式指纹嵌入每份副本、DNA身份证被盗触发、首发平台溯源——让盗版无处藏身。同时覆盖 AI 模型权属保护。
+
+---
+
+## 目录
+
+- [核心能力](#核心能力)
+- [项目结构](#项目结构)
+- [快速开始](#快速开始)
+- [安装](#安装)
+- [启动](#启动)
+- [使用教程](#使用教程)
+  - [0. 🎥 一键视频保护（小白模式，**比赛演示推荐**）](#0--一键视频保护小白模式)
+  - [1. 影视源文件加密](#1-影视源文件加密)
+  - [2. 嵌入隐式指纹水印](#2-嵌入隐式指纹水印)
+  - [3. 触发 DNA 身份证](#3-触发-dna-身份证水印)
+  - [4. 防盗反制](#4-防盗反制令牌--完整性--异常检测)
+  - [5. 泄露溯源](#5-泄露溯源)
+  - [6. AI 模型水印与权属证书](#6-ai-模型水印与权属证书)
+  - [7. 哈希链存证查询](#7-哈希链存证查询)
+  - [8. 官网预览](#8-官网预览)
+- [配置](#配置)
+- [API 程序化调用](#api-程序化调用)
+- [运行测试](#运行测试)
+- [部署](#部署)
+- [常见问题](#常见问题)
+
+---
+
+## 核心能力
+
+### 🎬 影视IP四层防线
+
+| # | 能力 | 技术 | 效果 |
+|---|------|------|------|
+| 1 | 后量子加密 | ML-KEM-768 | 源文件加密后，下载是密文、无密钥解不开、爬虫抓到是噪声 |
+| 2 | 隐式指纹 | DCT 频域变换 | 每份副本嵌入唯一指纹（平台+IP+用户+时间），PSNR >35dB 肉眼不可见 |
+| 3 | DNA身份证 | 可见水印 + 自动触发 | 检测到被窃即红色水印铺满画面，盗版丧失商业价值 |
+| 4 | 首发溯源 | 指纹匹配 + 哈希链 | 从盗版提取指纹 → 定位首个 IP + 平台 → 出具维权报告 |
+
+### 🛡️ 防窃取体系
+
+- **时效访问令牌** — 绑定 IP + UA + 使用次数，被转发立即失效
+- **完整性监控** — 哈希快照周期校验，文件被改即告警并触发反制
+- **异常检测** — 识别爬虫 UA / 高频访问 / 连续失败，高风险自动触发反制
+
+### 🤖 AI 模型保护
+
+- 权重级无损水印（精度零影响）
+- ML-DSA 后量子数字签名权属证书
+- 推理沙箱（进程隔离防逆向）
+- SHA-256 哈希链存证
+
+---
+
+## 项目结构
+
+```
+ModelShield/
+├── app.py                     # Streamlit 主界面（10 个功能页面）
+├── config.py                  # 全局配置：目录路径、水印强度、沙箱参数
+├── requirements.txt
+├── test_e2e.py                # 端到端测试：四大需求 21 项测试
+├── test_all.py                # 单元测试
+├── core/
+│   ├── crypto.py              # ML-KEM / ML-DSA 后量子加密签名
+│   ├── media_watermark.py     # DCT 隐式水印 + 可见水印
+│   ├── distribution.py        # 分发指纹登记 + 泄露溯源
+│   ├── anti_theft.py          # 访问令牌 + 完整性 + 异常检测 + 反制
+│   ├── watermark.py           # AI 模型权重级无损水印
+│   ├── sandbox.py             # 模型推理沙箱
+│   └── ledger.py              # 哈希链存证
+├── website/
+│   └── index.html             # 寰宇OS 独立官网（纯静态可独立部署）
+└── data/                      # 运行时产生的数据
+    ├── keys/                  # 密钥对
+    ├── certs/                 # 权属证书
+    ├── watermarked/           # 加水印/加密后的文件
+    ├── ledger.json            # 哈希链
+    ├── distributions.json     # 分发记录
+    ├── access_tokens.json     # 访问令牌
+    ├── access_log.json        # 访问日志
+    └── integrity_snapshots.json
+```
+
+---
+
+## 快速开始
+
+```bash
+git clone https://github.com/xungirl/ModelShield.git
+cd ModelShield
+pip install -r requirements.txt
+streamlit run app.py
+# 浏览器访问 http://localhost:8501
+```
+
+### 🎥 小白 30 秒上手（推荐入口）
+
+> 侧栏顶部的 **🎥 一键视频保护** 是为小白用户和比赛 demo 设计的"傻瓜模式"——一个按钮串完抗量子加密、隐式水印、令牌、签名、上链、沙箱所有 6 步，并能现场演示「合法播放 vs 4 种木马窃取」的反制效果。完整教程见 [0. 🎥 一键视频保护](#0--一键视频保护小白模式)。
+
+5 分钟跑通完整流程：
+
+1. 侧栏点 **🎥 一键视频保护** → 上传视频 → 一键加固 → 演示反制（**推荐**）
+2. 侧栏点 **🎬 影视文件保护** → 单独走加密 / 隐式水印 / 显式水印
+3. 侧栏点 **🛡️ 防盗反制** → 签发访问令牌 → 模拟异常 IP 访问
+4. 侧栏点 **🔍 泄露溯源** → 上传加水印的图 → 提取指纹定位源头
+5. 侧栏点 **🌐 寰宇OS 官网** → 查看产品对外展示页
+
+---
+
+## 安装
+
+### 环境要求
+
+- Python **3.10+**（测试环境 3.14）
+- macOS / Linux / Windows
+
+### 安装依赖
+
+```bash
+pip install -r requirements.txt
+```
+
+`requirements.txt` 包含：
+
+```
+streamlit         # 前端
+torch torchvision # AI 模型与水印
+numpy             # 数值计算
+opencv-python-headless  # 图像 / DCT 变换
+Pillow reportlab  # 图像处理 / PDF
+```
+
+### 可选：后量子加密真实实现
+
+默认使用模拟器（演示足够）。需要真实 ML-KEM / ML-DSA 算法时安装 liboqs：
+
+```bash
+pip install liboqs-python
+# 或参照 https://github.com/open-quantum-safe/liboqs-python 从源码编译
+```
+
+系统会自动检测到并切换（`core/crypto.py` 中 `HAS_OQS=True`）。
+
+---
+
+## 启动
+
+### 方式一：Streamlit Web UI（推荐）
+
+```bash
+streamlit run app.py
+# 或指定端口
+streamlit run app.py --server.port 8501 --server.headless true
+```
+
+打开 `http://localhost:8501`，侧栏导航：
+
+| 页面 | 功能 |
+|------|------|
+| 🎥 **一键视频保护**（小白入口） | **上传视频 → 一键 6 步加固 → 演示合法播放 vs 4 种木马窃取反制** |
+| 🏠 首页概览 | 平台简介 + 流程图 |
+| 🌐 寰宇OS 官网 | 内嵌产品官网预览 |
+| 🎬 影视文件保护 | 隐式水印 / 显式水印 / 文件加密 |
+| 🛡️ 防盗反制 | 令牌 / 完整性 / 异常检测 / 访问日志 |
+| 🔍 泄露溯源 | 指纹提取 + 首发平台定位 |
+| 🔏 模型水印 | AI 模型权重级水印 |
+| 🔐 加密签名 | PQ 密钥管理 + 模型加密 |
+| 📋 权属证书 | ML-DSA 签名证书 |
+| 🏗️ 推理沙箱 | 进程隔离模型推理 |
+| ⛓️ 存证验证 | 哈希链浏览 + 完整性校验 |
+
+### 方式二：官网独立部署
+
+`website/index.html` 是纯静态文件，可直接：
+
+- 打开本地：`open website/index.html`
+- 部署到 Vercel / Netlify / GitHub Pages / Nginx / 对象存储
+
+---
+
+## 使用教程
+
+### 0. 🎥 一键视频保护（小白模式）
+
+> **比赛演示首选页面**。一个按钮把"抗量子加密 + 无损水印 + 内存沙箱 + 后量子签名"四把锁一次上完，再用左右两个按钮区演示「偷之前 vs 偷之后」的对比效果。
+
+#### 启动并打开页面
+
+```bash
+streamlit run app.py
+# 默认端口 8501，自定义可加：--server.port 8520
+```
+
+浏览器打开 `http://localhost:8501`，左侧栏第一项点 **🎥 一键视频保护**。
+
+#### 步骤 ① 上传 & 填写版权信息
+
+| 输入 | 说明 | 推荐值 |
+|------|------|--------|
+| 源文件 | 视频或图片，支持 `mp4 / mov / avi / jpg / png` | 5～15 秒短视频效果最佳 |
+| 版权所有者名称 | 用于反制水印铺满画面的文字 | 比如 `寰宇影业` |
+| 首发分发平台 | 嵌入指纹的平台字段 | `抖音` / `B站` / `Netflix` 等 |
+| 授权接收方 IP | 令牌绑定的合法 IP | 默认 `10.0.0.42` 即可 |
+
+#### 步骤 ② 点击 🚀 一键加固保护
+
+紫色按钮一按，6 步进度条自动跑完：
+
+| 步骤 | 操作 | 输出 |
+|------|------|------|
+| ① | ML-KEM-768 抗量子加密源文件 | `data/watermarked/oneclick/xxx.enc` |
+| ② | DCT 频域嵌入唯一指纹（视频前 120 帧） | `xxx_watermarked.mp4` |
+| ③ | 签发 IP 绑定一次性令牌（默认 10 次有效） | `data/access_tokens.json` |
+| ④ | ML-DSA-65 后量子签名 → 颁发权属证书 | `cert_id` 显示在前端 |
+| ⑤ | 完整性快照 + 哈希链存证 + 分发登记 | `data/ledger.json` |
+| ⑥ | 内存推理沙箱就绪 | 状态显示绿色 ✅ |
+
+跑完页面会弹出 **4 把锁卡片** 和 **保护元信息**（证书 ID、原始哈希、指纹、令牌前缀）。
+
+#### 步骤 ③ 演示「偷之前 vs 偷之后」
+
+##### 左侧：📥 模拟合法授权播放
+
+点 **▶️ 模拟正版用户播放**：
+
+- 用绑定 IP + 正常浏览器 UA + 合法令牌
+- 令牌校验通过 → 进入内存沙箱解密 → 输出含**隐式水印**的合法副本
+- 视频/图片直接在线播放，可下载 `legit_copy.mp4`
+
+预期效果：肉眼**完全无差别**，但指纹已嵌入帧中。
+
+##### 右侧：☠️ 模拟木马窃取（4 个场景）
+
+每个按钮触发一种攻击，系统自动识别 → 触发反制 → 生成**铺满红色 DNA 水印 + 顶部警示条**的盗版副本：
+
+| 按钮 | 模拟场景 | 系统响应 |
+|------|---------|---------|
+| 🤖 可疑爬虫 UA | 攻击者用 `python-requests/2.31.0` 自动抓取 | 识别可疑 UA → 触发反制 |
+| 🎭 IP 不匹配 | 令牌被泄露并转发到 `1.2.3.4` 重放 | 检测 IP 漂移 → 触发反制 |
+| 🛠️ 文件被改 | 加密文件被木马篡改 1 个字节 | 哈希校验失败 → 触发反制 |
+| 🔥 高频访问 | 1 分钟内 15 次失败访问（撞库/扫描） | 异常检测命中阈值 → 触发反制 |
+
+每个按钮的输出：
+- 红色错误条：`⚠️ 攻击被识别！<具体原因>`
+- 蓝色信息条：`🛡️ 已触发反制：强制对盗版副本铺满 DNA 身份证水印`
+- 视频播放器：直接预览盗版副本（每一帧都红字铺满 + 顶部 `PIRATED COPY - <原因>`）
+- 下载按钮：导出 MP4 留作维权证据
+
+#### 比赛演示节奏建议（2 分钟）
+
+```
+0:00  打开 http://localhost:8501 → 点 🎥 一键视频保护
+0:05  上传 5 秒短视频 → 填默认信息
+0:15  按 🚀 一键加固 → 解说 6 步链路（抗量子/水印/令牌/签名/上链/沙箱）
+0:45  按 ▶️ 合法播放 → 展示画面无差别 + 隐式水印已嵌入
+1:00  连点 4 个木马按钮 → 现场对比"红字铺满"反制效果
+1:45  最后点开「📋 保护元信息」展示证书 ID + 哈希链证据
+```
+
+#### 演示素材建议
+
+- **短视频**：5～15 秒的 480p/720p 视频，加水印速度最舒服（前 120 帧约 5 秒）
+- **图片**：要快速验证流程时上传 jpg/png，秒出结果
+- **超长视频**：仍可用，但只对**前 120 帧**做隐式水印、**前 80 帧**做反制水印（演示足够）
+
+---
+
+### 1. 影视源文件加密
+
+**目标**：源文件加密后，下载 / 转发 / 爬虫抓取都拿到无法解读的密文。
+
+1. 侧栏进入 **🎬 影视文件保护** → 切到 **「文件加密」** 标签
+2. 上传图片或视频（支持 jpg/png/mp4/mov 等）
+3. 点击 **「🔐 加密源文件」**
+4. 系统自动：
+   - 生成 ML-KEM-768 临时密钥对
+   - 加密文件（保存为 `data/watermarked/xxx.enc`）
+   - 上链存证
+5. 页面展示 **原始文件** vs **加密后噪声图** 对比
+
+> ⚠️ 演示模式下密钥随机生成不落盘；生产请改为 `core/crypto.save_keys()` 持久化。
+
+### 2. 嵌入隐式指纹水印
+
+**目标**：每份分发副本都带一个唯一指纹，肉眼不可见但可提取。
+
+1. 切到 **「隐式水印（防盗溯源）」** 标签
+2. 上传图片
+3. 填：
+   - **分发平台**：抖音 / B站 / YouTube / 自定义
+   - **接收方IP**：如 `192.168.1.100`
+   - **接收方用户ID**：如 `user_001`
+4. 点 **「🔏 嵌入隐式水印」**
+5. 系统：
+   - 基于 DCT 把 `p:平台|ip:X|u:Y|t:时间戳` 嵌入 Y 通道中频
+   - 显示 PSNR（通常 >38 dB 即肉眼无法区分）
+   - 自动 `register_distribution` 登记并上链
+
+### 3. 触发 DNA 身份证水印
+
+**目标**：对被盗文件强制覆盖红色水印，使其丧失商业价值。
+
+1. 切到 **「显式水印（DNA身份证）」** 标签
+2. 上传要保护的图片
+3. 填 **版权声明文字**（如 `COPYRIGHT STUDIO_A 2026`）
+4. 调 **不透明度**（推荐 0.3-0.4）
+5. 点 **「🛑 触发显式水印」**
+
+输出：红色版权文字斜向密集铺满整个画面 + 顶部底部警告条。
+
+### 4. 防盗反制（令牌 / 完整性 / 异常检测）
+
+#### 4.1 签发访问令牌
+
+**🛡️ 防盗反制** → **「🔑 访问令牌」** 标签：
+
+- 填文件哈希、授权用户、**授权IP**、有效期、使用次数
+- 点「🔑 签发令牌」 → 拿到一串 URL-safe token
+
+#### 4.2 校验访问（模拟下载/转发）
+
+同一标签下半部「模拟访问校验」：
+
+| 场景 | 输入 | 预期 |
+|------|------|------|
+| 合法访问 | 令牌 + 授权IP + `Mozilla/5.0` | ✅ 放行 |
+| 转发他人 | 令牌 + 其他IP | ❌ `ip_mismatch` |
+| 爬虫抓取 | 令牌 + `python-requests/2.0` | ❌ `suspicious_user_agent` |
+| 过期 | 等 TTL 后 | ❌ `expired` |
+| 超次 | 超过 max_views | ❌ `exhausted` |
+
+#### 4.3 完整性监控
+
+**「🧬 完整性监控」** 标签：
+
+1. 对受保护文件 **建立快照**（记录 SHA-256）
+2. 任何时候点 **「🔎 校验完整性」**：
+   - 未改 → ✅ ok
+   - 被木马改写 → ❌ 自动上链告警 + `trigger_counter_measure` 触发 DNA 水印反制
+
+#### 4.4 异常检测
+
+**「⚠️ 异常检测」** 标签：
+
+- 输入可疑 IP 和 UA
+- 系统评级 `LOW / MEDIUM / HIGH`
+- HIGH 自动触发反制（该 IP 后续请求都得水印覆盖版本）
+
+### 5. 泄露溯源
+
+**目标**：发现盗版后，定位首发平台 + 首个 IP。
+
+1. 侧栏进入 **🔍 泄露溯源**
+2. 上传盗版图片
+3. 填 **指纹长度**（与嵌入时一致，默认 50）
+4. 点 **「🔍 提取指纹并溯源」**
+
+系统输出：
+
+- 提取的指纹字符串
+- 精确匹配的分发记录（若有）
+- 相似度排序的模糊匹配（容忍视频压缩损伤）
+- **溯源结论**：含平台、用户、IP、分发时间，可用于司法举证
+
+### 6. AI 模型水印与权属证书
+
+**嵌入水印** (**🔏 模型水印**)：
+
+1. 填所有者 ID + 水印密钥（妥善保管！）
+2. 使用内置 Demo 模型或上传 `.pt/.pth`
+3. 点「🔏 嵌入水印」→ 显示嵌入前后精度对比（差异通常 < 0.01%）
+
+**生成证书** (**📋 权属证书**)：
+
+1. 先到 **🔐 加密签名** 生成 ML-DSA 密钥对
+2. 回到证书页填所有者和模型名
+3. 点「📋 生成证书」→ 得到带 PQ 签名的 JSON 证书 + 自动验签
+
+### 7. 哈希链存证查询
+
+**⛓️ 存证验证**：
+
+- 「存证记录」标签：浏览所有区块（加密、水印、分发、访问、反制、溯源全覆盖）
+- 「链完整性验证」：一键校验全链哈希，篡改即失败
+
+### 8. 官网预览
+
+侧栏 **🌐 寰宇OS 官网** → 在 Streamlit 内嵌看产品页，或点「⬇️ 下载官网 HTML」部署到自有域名。
+
+---
+
+## 配置
+
+编辑 `config.py`：
+
+```python
+# 数据目录（默认在项目下 data/）
+DATA_DIR = "data"
+
+# 水印强度
+WATERMARK_STRENGTH = 0.01   # 模型水印（越小精度影响越小）
+# DCT 图像水印强度见 core/media_watermark.py embed_invisible_watermark(strength=25.0)
+
+# 沙箱限制
+SANDBOX_TIMEOUT = 30                   # 推理超时（秒）
+SANDBOX_MAX_MEMORY = 512 * 1024 * 1024 # 512MB
+```
+
+`core/anti_theft.py` 中可调的异常阈值：
+
+```python
+MAX_REQUESTS_PER_MINUTE = 10  # 单 IP 每分钟请求上限
+SUSPICIOUS_UA_KEYWORDS = ["wget", "curl", "python-requests",
+                          "scrapy", "spider", "crawler", "bot", ...]
+```
+
+---
+
+## API 程序化调用
+
+不用 UI，直接在 Python 里调用核心模块：
+
+```python
+from core.crypto import PostQuantumCrypto
+from core.media_watermark import embed_invisible_watermark, generate_fingerprint
+from core.distribution import register_distribution, trace_leak
+from core.anti_theft import issue_access_token, verify_access_token
+import cv2
+
+# 1. 加密
+crypto = PostQuantumCrypto()
+pub, sec = crypto.generate_kem_keypair()
+ciphertext, encrypted = crypto.encrypt_model(open("movie.mp4", "rb").read(), pub)
+
+# 2. 嵌入隐式水印 + 登记分发
+img = cv2.imread("frame.png")
+fp = generate_fingerprint("DouYin", "203.0.113.10", "user_001")
+watermarked = embed_invisible_watermark(img, fp)
+register_distribution("frame.png", "hash...", "DouYin", "203.0.113.10", "user_001", fp)
+
+# 3. 签发访问令牌
+token = issue_access_token("file_hash", "user_001", "203.0.113.10", ttl_seconds=300)
+
+# 4. 校验下载请求
+result = verify_access_token(token["token"], request_ip="1.2.3.4", user_agent="Mozilla/5.0")
+print(result["valid"], result["reason"])  # False, "ip_mismatch"
+
+# 5. 溯源
+report = trace_leak(extracted_fingerprint)
+print(report["conclusion"])
+```
+
+---
+
+## 运行测试
+
+端到端测试覆盖 **四大需求 + 存证，共 21 项**：
+
+```bash
+python test_e2e.py
+```
+
+预期输出：
+
+```
+✅ 通过: 21    ❌ 失败: 0
+🎉 全部通过 — 四大需求功能验证成功
+```
+
+单元测试：
+
+```bash
+python test_all.py
+```
+
+> **注意**：若 `streamlit` 装在 Homebrew Python 下、而 `python` 命令指向 conda，请用对应解释器运行，例如：
+> ```bash
+> /opt/homebrew/bin/python3 test_e2e.py
+> ```
+
+---
+
+## 部署
+
+### HuggingFace Spaces（零成本）
+
+项目已配置 Spaces 头（README 顶部的 YAML），直接：
+
+```bash
+git push spaces main
+```
+
+### Streamlit Cloud（零成本）
+
+在 [share.streamlit.io](https://share.streamlit.io) 绑定 GitHub 仓库即可。
+
+### 自有服务器
+
+```bash
+# Docker 示例
+docker run -d -p 8501:8501 -v $(pwd)/data:/app/data \
+  python:3.11 bash -c "pip install -r requirements.txt && streamlit run app.py --server.address 0.0.0.0"
+```
+
+### 官网托管
+
+`website/index.html` 扔到 GitHub Pages / Vercel / Netlify / 对象存储任意一家。
+
+---
+
+## 常见问题
+
+**Q: `ModuleNotFoundError: No module named 'numpy'`**
+A: Streamlit 和测试使用同一 Python 解释器。先确认 `which streamlit` 指向的解释器下有依赖。
+
+**Q: DCT 指纹提取率只有 16%？**
+A: 载体图像太过高频噪声时 DCT 中频会被淹没。用平滑图像（真实影视帧通常满足）或提高 `strength=25` 到 40+。
+
+**Q: 中文平台名指纹恢复率低？**
+A: UTF-8 中文每字 3 字节，建议指纹用 ASCII。或者增强水印强度。
+
+**Q: 模拟器加密安全吗？**
+A: **仅供演示**。生产环境必须安装 `liboqs-python` 启用真实 ML-KEM / ML-DSA。
+
+**Q: JSON 文件存储扛得住生产吗？**
+A: Demo 够用。生产环境请迁移到 PostgreSQL（存证/令牌/分发）+ S3（加密文件）+ Redis（令牌缓存）。
+
+**Q: 视频能加水印吗？**
+A: 可以，`core/media_watermark.py` 提供 `process_video_watermark()`，对每帧嵌入 DCT 指纹。演示模式默认限制 300 帧。
+
+---
+
+## License
+
+MIT
+
+## Credits
+
+寰宇OS · HuanYu OS · 为每一帧画面签发身份证。

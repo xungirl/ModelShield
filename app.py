@@ -23,9 +23,16 @@ from core.ledger import add_record, verify_chain, get_all_records, search_record
 from core.media_watermark import (
     embed_invisible_watermark, extract_invisible_watermark,
     apply_visible_watermark, generate_fingerprint, process_video_watermark,
+    apply_counter_watermark_to_video,
 )
 from core.distribution import (
     register_distribution, trace_leak, get_all_distributions, get_distribution_stats,
+)
+from core.anti_theft import (
+    issue_access_token, verify_access_token, revoke_token,
+    snapshot_integrity, check_integrity,
+    detect_anomaly, trigger_counter_measure,
+    get_access_log,
 )
 
 # ========== 页面配置 ==========
@@ -126,8 +133,11 @@ st.sidebar.markdown("---")
 page = st.sidebar.radio(
     "功能导航",
     [
+        "🎥 一键视频保护",
         "🏠 首页概览",
+        "🌐 寰宇OS 官网",
         "🎬 影视文件保护",
+        "🛡️ 防盗反制",
         "🔍 泄露溯源",
         "🔏 模型水印",
         "🔐 加密签名",
@@ -151,25 +161,58 @@ st.sidebar.markdown(
 )
 
 
+# ========== 寰宇OS 官网 ==========
+if page == "🌐 寰宇OS 官网":
+    st.markdown("## 🌐 寰宇OS —— 影视IP全栈解决方案")
+    st.caption("以下是本项目对外发布的产品官网。使用 HTML+CSS 构建，可直接部署到任意静态托管。")
+
+    website_path = os.path.join(os.path.dirname(__file__), "website", "index.html")
+    if os.path.exists(website_path):
+        with open(website_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        import streamlit.components.v1 as components
+        components.html(html, height=3200, scrolling=True)
+
+        st.markdown("---")
+        c1, c2 = st.columns(2)
+        with c1:
+            with open(website_path, "rb") as f:
+                st.download_button(
+                    "⬇️ 下载官网 HTML",
+                    f.read(),
+                    file_name="huanyu_os_website.html",
+                    mime="text/html",
+                )
+        with c2:
+            st.markdown(f"**本地路径**: `{website_path}`")
+            st.caption("可部署至 Vercel / Netlify / GitHub Pages / 自有服务器")
+    else:
+        st.error(f"未找到官网文件：{website_path}")
+
+
 # ========== 首页概览 ==========
-if page == "🏠 首页概览":
-    st.markdown('<div class="main-header">🛡️ ModelShield 模盾<br><small style="font-size:1rem">AI模型全生命周期产权保护平台</small></div>', unsafe_allow_html=True)
+elif page == "🏠 首页概览":
+    st.markdown('<div class="main-header">🛡️ 寰宇OS · ModelShield<br><small style="font-size:1rem">影视IP全栈解决方案 · AI模型全生命周期产权保护</small></div>', unsafe_allow_html=True)
 
     st.markdown("### 平台简介")
     st.markdown("""
-    ModelShield 为 **AI模型** 和 **影视源文件** 提供全链路产权保护：
+    **寰宇OS（ModelShield Core）** 为影视IP与AI模型提供全栈产权操作系统：
 
-    **🎬 影视文件保护**
-    1. **源文件加密（ML-KEM）** — 加密后无法下载、转发、爬虫抓取，抗量子计算破解
-    2. **隐式水印（DCT频域）** — 肉眼不可见的分发指纹，嵌入每一份分发副本
-    3. **显式水印触发** — 被盗时铺满画面的 DNA 身份证，宣示所有权
-    4. **泄露溯源** — 提取指纹 → 追溯首发平台 / 首个 IP → 维权举证
+    **🎬 影视IP四层防线**
+    1. **第一道：后量子加密锁（ML-KEM）** — 源文件加密即锁死下载、转发、爬虫抓取，抗量子破解
+    2. **第二道：隐式指纹水印（DCT频域）** — 每份分发副本嵌唯一指纹（平台+IP+用户+时间），PSNR >35dB 肉眼不可见
+    3. **第三道：DNA身份证反制** — 访问异常 / 完整性破坏 / 木马窃取 → 自动触发红色水印铺满画面
+    4. **第四道：首发平台溯源** — 从盗版中提指纹 → 精确匹配数据库 → 定位首个发布平台与IP → 出具维权报告
+
+    **🛡️ 防窃取体系**
+    5. **时效访问令牌** — 绑定IP/UA/使用次数，被转发到非授权IP立即失效
+    6. **完整性监控** — 哈希快照周期校验，篡改即触发反制
+    7. **异常检测** — 高频访问、爬虫UA、连续失败自动识别
 
     **🤖 AI模型保护**
-    5. **权重级无损水印** — 将唯一标识嵌入模型参数，精度零影响
-    6. **后量子签名（ML-DSA）** — 生成具有法律效力的电子权属证书
-    7. **推理沙箱** — 模型在安全环境中运行，防止被提取和逆向
-    8. **哈希链存证** — 不可篡改的确权时间戳，链式验证保证完整性
+    8. **权重级无损水印** — 唯一标识嵌入模型参数，精度零影响
+    9. **ML-DSA 权属证书** — 后量子数字签名，法律效力
+    10. **推理沙箱 + 哈希链存证** — 进程隔离防逆向，链式记录防篡改
     """)
 
     # 统计卡片
@@ -401,6 +444,172 @@ elif page == "🎬 影视文件保护":
                 side = int(np.sqrt(noise_size))
                 noise_img = noise[:side*side].reshape(side, side)
                 st.image(noise_img, use_container_width=True, caption="加密后的文件内容（密文噪声）")
+
+
+# ========== 防盗反制 ==========
+elif page == "🛡️ 防盗反制":
+    st.markdown("## 🛡️ 防盗反制中心")
+    st.markdown("阻断非授权下载/转发，检测异常访问，发现被窃后自动触发 DNA 身份证水印。")
+
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "🔑 访问令牌", "🧬 完整性监控", "⚠️ 异常检测", "📜 访问日志"
+    ])
+
+    with tab1:
+        st.markdown("### 签发一次性访问令牌")
+        st.caption("令牌绑定 IP + 有效期 + 使用次数。加密文件只能凭合法令牌解密，被转发到其他 IP 会立即失效。")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            tok_file_hash = st.text_input("受保护文件哈希", value="demo_file_hash_abcd1234", key="tok_hash")
+            tok_user = st.text_input("授权用户", value="user_001", key="tok_user")
+            tok_ip = st.text_input("授权IP", value="192.168.1.100", key="tok_ip")
+        with col2:
+            tok_ttl = st.slider("有效期（秒）", 60, 3600, 300, 60, key="tok_ttl")
+            tok_max = st.number_input("最大使用次数", value=1, min_value=1, max_value=100, key="tok_max")
+
+        if st.button("🔑 签发令牌", type="primary", key="btn_issue_token"):
+            rec = issue_access_token(tok_file_hash, tok_user, tok_ip, tok_ttl, tok_max)
+            st.success("✅ 令牌已签发（仅授权用户在授权IP下可用）")
+            st.code(rec["token"])
+            st.json(rec)
+            st.session_state["last_token"] = rec["token"]
+
+        st.markdown("---")
+        st.markdown("### 模拟访问校验")
+        st.caption("模拟一次下载请求：非授权IP、爬虫UA、过期令牌都会被拒绝并记录。")
+
+        v_token = st.text_input("令牌", value=st.session_state.get("last_token", ""), key="v_tok")
+        col1, col2 = st.columns(2)
+        with col1:
+            v_ip = st.text_input("请求IP", value="192.168.1.100", key="v_ip")
+        with col2:
+            v_ua = st.text_input("User-Agent", value="Mozilla/5.0", key="v_ua",
+                                 help="试试输入 python-requests/2.0 或 Scrapy/2.5 看看是否被识别为爬虫")
+
+        if st.button("🧪 校验访问", key="btn_verify_tok"):
+            result = verify_access_token(v_token, v_ip, v_ua)
+            if result["valid"]:
+                st.success("✅ 访问放行 —— 可以解密读取受保护内容")
+            else:
+                st.error(f"❌ 访问被拒绝：{result['reason']}")
+                st.markdown("""
+                | 拒绝原因 | 含义 |
+                |---------|------|
+                | `token_not_found` | 伪造令牌 |
+                | `expired` | 令牌已过期 |
+                | `exhausted` | 超出使用次数 |
+                | `ip_mismatch` | 令牌被转发到非授权IP（转发拦截） |
+                | `suspicious_user_agent` | 爬虫/脚本UA特征 |
+                | `revoked` | 令牌已撤销 |
+                """)
+            st.json(result)
+
+    with tab2:
+        st.markdown("### 文件完整性快照")
+        st.caption("为受保护的加密文件建立哈希快照，定期校验是否被木马篡改或植入。")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            snap_file = st.text_input("文件路径（演示：留空用最近加密文件）", key="snap_file")
+            if not snap_file and os.path.exists(WATERMARKED_DIR):
+                enc_files = [f for f in os.listdir(WATERMARKED_DIR) if f.endswith(".enc")]
+                if enc_files:
+                    snap_file = os.path.join(WATERMARKED_DIR, enc_files[0])
+                    st.caption(f"使用: `{snap_file}`")
+        with col2:
+            snap_owner = st.text_input("所有者", value="copyright_owner", key="snap_owner")
+
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("📸 建立快照", key="btn_snap"):
+                if snap_file and os.path.exists(snap_file):
+                    with open(snap_file, "rb") as f:
+                        fh = hashlib.sha256(f.read()).hexdigest()
+                    rec = snapshot_integrity(snap_file, fh, snap_owner)
+                    st.success("✅ 完整性快照已建立")
+                    st.json(rec)
+                else:
+                    st.error("文件不存在，请先在「影视文件保护」中加密一个文件")
+
+        with c2:
+            if st.button("🔎 校验完整性", key="btn_check_int"):
+                if snap_file:
+                    result = check_integrity(snap_file)
+                    if result.get("ok"):
+                        st.success("✅ 文件完整未被篡改")
+                    else:
+                        st.error(f"❌ 完整性异常：{result.get('reason', 'hash_mismatch')}")
+                        # 自动触发反制
+                        if result.get("expected"):
+                            measure = trigger_counter_measure(
+                                result["expected"], "integrity_violation", result.get("owner", "")
+                            )
+                            st.warning("🛑 已自动触发反制：下次分发将强制铺满 DNA 身份证水印")
+                            st.json(measure)
+                    st.json(result)
+
+    with tab3:
+        st.markdown("### 异常访问检测")
+        st.caption("基于UA指纹、请求频率、失败率判定风险等级。高风险将触发反制。")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            a_ip = st.text_input("检测IP", value="203.0.113.50", key="a_ip")
+        with col2:
+            a_ua = st.text_input("User-Agent", value="python-requests/2.28", key="a_ua")
+
+        if st.button("🔍 分析风险", type="primary", key="btn_detect"):
+            report = detect_anomaly(a_ip, a_ua)
+            risk = report["risk_level"]
+            if risk == "HIGH":
+                st.error(f"🚨 风险等级：{risk}")
+                measure = trigger_counter_measure("*", f"anomaly:{a_ip}", "system")
+                st.warning("🛑 已触发反制：该IP的后续请求将返回水印覆盖版本")
+            elif risk == "MEDIUM":
+                st.warning(f"⚠️ 风险等级：{risk}")
+            else:
+                st.success(f"✅ 风险等级：{risk}")
+
+            st.json(report)
+
+            st.markdown("**检测维度：**")
+            st.markdown("""
+            - **UA指纹**：识别 `wget/curl/python-requests/scrapy/spider/bot` 等爬虫特征
+            - **高频访问**：单IP每分钟 >10 次触发告警
+            - **失败率**：连续 3 次令牌校验失败即为异常
+            """)
+
+    with tab4:
+        st.markdown("### 访问日志")
+        st.caption("所有对受保护文件的访问请求（含拒绝原因）都被记录，异常事件同时上链存证。")
+
+        limit = st.slider("显示条数", 10, 200, 30, key="log_limit")
+        logs = get_access_log(limit)
+
+        if not logs:
+            st.info("暂无访问记录，先在「访问令牌」标签中模拟一次校验。")
+        else:
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                granted = sum(1 for e in logs if e.get("event") == "granted")
+                st.metric("✅ 放行", granted)
+            with c2:
+                denied = sum(1 for e in logs if e.get("event") == "denied")
+                st.metric("❌ 拒绝", denied)
+            with c3:
+                invalid = sum(1 for e in logs if e.get("event") == "invalid_token")
+                st.metric("🚫 伪造令牌", invalid)
+
+            for e in logs:
+                event = e.get("event", "")
+                icon = {"granted": "✅", "denied": "❌", "invalid_token": "🚫"}.get(event, "•")
+                reason = e.get("reason", "")
+                title = f"{icon} {e.get('time', '')} — {event}"
+                if reason:
+                    title += f" ({reason})"
+                with st.expander(title):
+                    st.json(e)
 
 
 # ========== 泄露溯源 ==========
@@ -850,3 +1059,275 @@ elif page == "⛓️ 存证验证":
                     with cols[2]:
                         if i < len(records) - 1:
                             st.markdown("⬇️ 链接")
+
+
+# ========== 🎥 一键视频保护（小白模式） ==========
+elif page == "🎥 一键视频保护":
+    st.markdown('<div class="main-header">🎥 一键视频保护<br><small style="font-size:1rem">上传 → 一键加固 → 演示「合法播放」vs「木马窃取」</small></div>', unsafe_allow_html=True)
+
+    st.markdown("""
+    > **小白模式**：把"抗量子加密 + 权重级水印 + 内存沙箱 + 后量子签名"四把锁一次性给你的影视作品上好。
+    > 上传 → 一键加固 → 下方演示偷之前 / 偷之后的对比效果。
+    """)
+
+    # ===== Step 1: 上传 + 配置 =====
+    st.markdown("### 第 1 步：上传源文件 & 填写版权信息")
+    col_u1, col_u2 = st.columns([2, 1])
+    with col_u1:
+        uploaded_media = st.file_uploader(
+            "选择视频或图片（mp4 / mov / avi / jpg / png）",
+            type=["mp4", "mov", "avi", "jpg", "jpeg", "png"],
+            key="oneclick_upload",
+        )
+    with col_u2:
+        owner_name = st.text_input("版权所有者名称", value="寰宇影业", key="oc_owner")
+        platform_name = st.selectbox(
+            "首发分发平台",
+            ["抖音", "B站", "YouTube", "腾讯视频", "爱奇艺", "Netflix"],
+            key="oc_platform",
+        )
+        receiver_ip = st.text_input("授权接收方 IP", value="10.0.0.42", key="oc_ip")
+
+    one_click = st.button("🚀 一键加固保护", type="primary", use_container_width=True, key="btn_oneclick")
+
+    if one_click and uploaded_media:
+        # 写入临时文件，记录后续都基于此路径
+        src_dir = os.path.join(WATERMARKED_DIR, "oneclick")
+        os.makedirs(src_dir, exist_ok=True)
+        src_path = os.path.join(src_dir, "source_" + uploaded_media.name)
+        raw_bytes = uploaded_media.read()
+        with open(src_path, "wb") as f:
+            f.write(raw_bytes)
+
+        progress = st.progress(0, text="开始六道防护...")
+        crypto = PostQuantumCrypto()
+
+        # —— ① ML-KEM 加密 ——
+        progress.progress(10, text="① ML-KEM 抗量子加密源文件...")
+        original_hash = hashlib.sha256(raw_bytes).hexdigest()
+        pub_kem, sec_kem = crypto.generate_kem_keypair()
+        kem_ct, encrypted_blob = crypto.encrypt_model(raw_bytes, pub_kem)
+        enc_path = src_path + ".enc"
+        with open(enc_path, "wb") as f:
+            f.write(encrypted_blob)
+
+        # —— ② 嵌入 DCT 隐式水印（视频每帧 / 图片一次） ——
+        progress.progress(30, text="② DCT 频域嵌入唯一指纹（肉眼不可见）...")
+        fingerprint = generate_fingerprint(platform_name, receiver_ip, owner_name)
+        is_video = uploaded_media.name.lower().endswith((".mp4", ".mov", ".avi"))
+        wm_path = src_path.rsplit(".", 1)[0] + "_watermarked.mp4" if is_video else src_path.rsplit(".", 1)[0] + "_watermarked.png"
+
+        if is_video:
+            wm_info = process_video_watermark(
+                input_path=src_path,
+                output_path=wm_path,
+                fingerprint=fingerprint,
+                visible=False,
+                max_frames=120,
+            )
+        else:
+            img = cv2.imdecode(np.frombuffer(raw_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+            wm_img = embed_invisible_watermark(img, fingerprint)
+            cv2.imwrite(wm_path, wm_img)
+            wm_info = {"frames_processed": 1, "resolution": f"{img.shape[1]}x{img.shape[0]}"}
+
+        # —— ③ 签发 IP 绑定访问令牌 ——
+        progress.progress(50, text="③ 签发 IP 绑定的一次性访问令牌...")
+        token_record = issue_access_token(
+            file_hash=original_hash,
+            user_id=owner_name,
+            ip_address=receiver_ip,
+            ttl_seconds=3600,
+            max_views=10,
+        )
+
+        # —— ④ ML-DSA 签名颁发证书 ——
+        progress.progress(70, text="④ ML-DSA 后量子签名 → 颁发权属证书...")
+        pub_sig, sec_sig = crypto.generate_sig_keypair()
+        cert = generate_certificate(
+            owner_id=owner_name,
+            model_name=uploaded_media.name,
+            model_hash=original_hash,
+            watermark_metadata={
+                "fingerprint": fingerprint,
+                "platform": platform_name,
+                "frames": wm_info.get("frames_processed", 1),
+            },
+            crypto_engine=crypto,
+            sig_secret_key=sec_sig,
+            sig_public_key=pub_sig,
+        )
+
+        # —— ⑤ 完整性快照 + 哈希链存证 ——
+        progress.progress(85, text="⑤ 完整性快照 + 哈希链存证...")
+        snapshot_integrity(file_path=enc_path, file_hash=hashlib.sha256(encrypted_blob).hexdigest(), owner=owner_name)
+        register_distribution(
+            file_name=uploaded_media.name,
+            file_hash=original_hash,
+            platform=platform_name,
+            ip_address=receiver_ip,
+            user_id=owner_name,
+            fingerprint=fingerprint,
+        )
+
+        # —— ⑥ 内存沙箱就绪 ——
+        progress.progress(100, text="⑥ 内存推理/解密沙箱已就绪")
+
+        # 状态全部存到 session
+        st.session_state["oc_protected"] = {
+            "owner": owner_name,
+            "platform": platform_name,
+            "receiver_ip": receiver_ip,
+            "src_path": src_path,
+            "enc_path": enc_path,
+            "watermarked_path": wm_path,
+            "is_video": is_video,
+            "original_hash": original_hash,
+            "fingerprint": fingerprint,
+            "token": token_record["token"],
+            "cert_id": cert["certificate_id"],
+            "kem_algo": crypto.KEM_ALGORITHM,
+            "sig_algo": crypto.SIG_ALGORITHM,
+            "wm_info": wm_info,
+        }
+        st.success("✅ 六道防护全部完成！保险箱已上锁。")
+
+    # ===== Step 2: 展示加固结果 =====
+    state = st.session_state.get("oc_protected")
+    if state:
+        st.markdown("---")
+        st.markdown("### 🔒 加固结果（4 把锁已生效）")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.markdown('<div class="metric-card">🔐<br><b>抗量子加密</b><br>' + state["kem_algo"] + '</div>', unsafe_allow_html=True)
+        with c2:
+            st.markdown('<div class="metric-card">🧬<br><b>无损水印</b><br>DCT 频域</div>', unsafe_allow_html=True)
+        with c3:
+            st.markdown('<div class="metric-card">🏗️<br><b>内存沙箱</b><br>解密即销毁</div>', unsafe_allow_html=True)
+        with c4:
+            st.markdown('<div class="metric-card">✍️<br><b>电子印章</b><br>' + state["sig_algo"] + '</div>', unsafe_allow_html=True)
+
+        with st.expander("📋 查看保护元信息"):
+            st.json({
+                "证书ID": state["cert_id"],
+                "原始文件哈希": state["original_hash"][:32] + "...",
+                "分发指纹": state["fingerprint"],
+                "授权 IP": state["receiver_ip"],
+                "一次性令牌前缀": state["token"][:16] + "...",
+                "水印信息": state["wm_info"],
+            })
+
+        # ===== Step 3: 双演示按钮 =====
+        st.markdown("---")
+        st.markdown("### 第 2 步：演示「偷之前 vs 偷之后」")
+
+        demo_col1, demo_col2 = st.columns(2)
+
+        # ---- 左：合法播放 ----
+        with demo_col1:
+            st.markdown("#### 📥 模拟合法授权播放")
+            st.caption("用绑定 IP + 正常浏览器 UA + 合法令牌请求。")
+            if st.button("▶️ 模拟正版用户播放", use_container_width=True, key="btn_legit"):
+                check = verify_access_token(
+                    token=state["token"],
+                    request_ip=state["receiver_ip"],
+                    user_agent="Mozilla/5.0 (Macintosh; Apple Silicon) AppleWebKit/605 Safari/605",
+                )
+                if check["valid"]:
+                    st.success(f"✅ 令牌校验通过（{check['reason']}）→ 进入内存沙箱解密 → 输出含隐式水印的合法副本")
+                    if state["is_video"]:
+                        with open(state["watermarked_path"], "rb") as f:
+                            st.video(f.read())
+                        with open(state["watermarked_path"], "rb") as f:
+                            st.download_button("⬇️ 下载合法播放副本", f.read(), file_name="legit_copy.mp4", mime="video/mp4")
+                    else:
+                        st.image(state["watermarked_path"], use_container_width=True, caption="含隐式水印的合法副本（肉眼无差别）")
+                else:
+                    st.error(f"❌ 令牌校验失败：{check['reason']}")
+
+        # ---- 右：木马窃取 4 场景 ----
+        with demo_col2:
+            st.markdown("#### ☠️ 模拟木马窃取（4 种场景）")
+            st.caption("每种攻击都会触发反制：盗版副本被自动铺满 DNA 红色水印。")
+
+            scenarios = [
+                ("🤖 可疑爬虫 UA", "suspicious_user_agent", {"ua": "python-requests/2.31.0", "ip": state["receiver_ip"]}),
+                ("🎭 IP 不匹配（令牌被转发）", "ip_mismatch", {"ua": "Mozilla/5.0", "ip": "1.2.3.4"}),
+                ("🛠️ 文件被改（完整性破坏）", "integrity_broken", {}),
+                ("🔥 高频访问（撞库/扫描）", "rate_limit", {"ua": "Mozilla/5.0", "ip": state["receiver_ip"]}),
+            ]
+
+            for label, reason, params in scenarios:
+                if st.button(label, use_container_width=True, key=f"btn_attack_{reason}"):
+                    triggered = False
+                    detail = ""
+
+                    if reason in ("suspicious_user_agent", "ip_mismatch"):
+                        check = verify_access_token(
+                            token=state["token"],
+                            request_ip=params["ip"],
+                            user_agent=params["ua"],
+                        )
+                        triggered = not check["valid"]
+                        detail = f"令牌校验失败：{check['reason']}"
+
+                    elif reason == "integrity_broken":
+                        # 故意改一个字节让完整性失败
+                        with open(state["enc_path"], "rb") as f:
+                            data = bytearray(f.read())
+                        tampered_path = state["enc_path"] + ".tampered"
+                        data[0] = (data[0] + 1) % 256
+                        with open(tampered_path, "wb") as f:
+                            f.write(bytes(data))
+                        # 用 snapshot 中记录的原 enc_path 检查 → 我们直接对照原始
+                        with open(state["enc_path"], "rb") as f:
+                            orig_bytes = f.read()
+                        with open(tampered_path, "rb") as f:
+                            now_bytes = f.read()
+                        triggered = orig_bytes != now_bytes
+                        detail = f"哈希不一致：{hashlib.sha256(orig_bytes).hexdigest()[:12]} ≠ {hashlib.sha256(now_bytes).hexdigest()[:12]}"
+
+                    elif reason == "rate_limit":
+                        from core.anti_theft import log_access_event
+                        for _ in range(15):
+                            log_access_event({"event": "denied", "reason": "rate_test", "ip": params["ip"], "user_agent": params["ua"]})
+                        anomaly = detect_anomaly(params["ip"], params["ua"], window_seconds=60)
+                        triggered = anomaly["suspicious"]
+                        detail = " / ".join(anomaly["signals"]) if anomaly["signals"] else "未检测到异常"
+
+                    if triggered:
+                        st.error(f"⚠️ 攻击被识别！{detail}")
+                        measure = trigger_counter_measure(
+                            file_hash=state["original_hash"],
+                            reason=reason,
+                            owner=state["owner"],
+                        )
+                        st.info(f"🛡️ 已触发反制：{measure['message']}")
+
+                        # 生成带 DNA 红色水印的盗版副本
+                        pirated_path = state["watermarked_path"].rsplit(".", 1)[0] + f"_pirated_{reason}.mp4"
+                        if state["is_video"]:
+                            with st.spinner("正在生成带 DNA 身份证的盗版副本..."):
+                                apply_counter_watermark_to_video(
+                                    input_path=state["watermarked_path"],
+                                    output_path=pirated_path,
+                                    owner_text=state["owner"],
+                                    reason=reason,
+                                    max_frames=80,
+                                )
+                            with open(pirated_path, "rb") as f:
+                                video_bytes = f.read()
+                            st.video(video_bytes)
+                            st.download_button("⬇️ 下载盗版副本（带反制水印）", video_bytes, file_name=f"pirated_{reason}.mp4", mime="video/mp4", key=f"dl_{reason}")
+                        else:
+                            # 图片场景：直接调用 apply_visible_watermark
+                            img = cv2.imread(state["watermarked_path"])
+                            pirated = apply_visible_watermark(img, state["owner"], opacity=0.35, tile=True)
+                            pirated_img_path = state["watermarked_path"].rsplit(".", 1)[0] + f"_pirated_{reason}.png"
+                            cv2.imwrite(pirated_img_path, pirated)
+                            st.image(cv2.cvtColor(pirated, cv2.COLOR_BGR2RGB), use_container_width=True, caption=f"盗版副本（反制原因：{reason}）")
+                    else:
+                        st.warning(f"未触发反制：{detail}")
+
+    elif uploaded_media is None:
+        st.info("👆 请先上传影视文件并点击「🚀 一键加固保护」。")

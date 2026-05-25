@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>寰宇OS —— 影视IP全栈解决方案</title>
+<meta name="description" content="寰宇OS 为影视源文件提供后量子加密、隐式水印、DNA身份证、泄露溯源的一站式产权保护。加密即锁死下载与转发，被窃即触发反制。" />
+<style>
+  :root {
+    --bg: #050716;
+    --bg-soft: #0b1027;
+    --fg: #e8ecff;
+    --fg-dim: #aab1d6;
+    --accent: #5a7cff;
+    --accent-2: #b659ff;
+    --accent-3: #40e0d0;
+    --danger: #ff4d6d;
+    --border: rgba(255, 255, 255, 0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* ---------- Background aurora ---------- */
+  body::before {
+    content: "";
+    position: fixed;
+    top: -20%;
+    left: -20%;
+    width: 140%;
+    height: 140%;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(90, 124, 255, 0.22), transparent 45%),
+      radial-gradient(circle at 80% 20%, rgba(182, 89, 255, 0.18), transparent 40%),
+      radial-gradient(circle at 50% 90%, rgba(64, 224, 208, 0.15), transparent 50%);
+    z-index: -1;
+    animation: drift 22s ease-in-out infinite alternate;
+  }
+  @keyframes drift {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    100% { transform: translate(-4%, 3%) rotate(2deg); }
+  }
+
+  /* ---------- Nav ---------- */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(20px);
+    background: rgba(5, 7, 22, 0.7);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    font-size: 1.35rem;
+    font-weight: 800;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent-3));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    letter-spacing: 0.06em;
+  }
+  .nav-links {
+    display: flex;
+    gap: 2rem;
+    list-style: none;
+  }
+  .nav-links a {
+    color: var(--fg-dim);
+    text-decoration: none;
+    font-size: 0.92rem;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--fg); }
+
+  /* ---------- Sections ---------- */
+  section {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 6rem 2rem;
+  }
+  h2 {
+    font-size: clamp(1.8rem, 3.2vw, 2.6rem);
+    margin-bottom: 1rem;
+    text-align: center;
+    font-weight: 800;
+  }
+  h2 .highlight {
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .section-sub {
+    text-align: center;
+    color: var(--fg-dim);
+    max-width: 720px;
+    margin: 0 auto 3.5rem;
+    font-size: 1rem;
+  }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    min-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 4rem 2rem;
+    position: relative;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.1rem;
+    border-radius: 999px;
+    background: rgba(90, 124, 255, 0.12);
+    border: 1px solid rgba(90, 124, 255, 0.35);
+    font-size: 0.82rem;
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+  }
+  .badge::before {
+    content: "●";
+    color: var(--accent-3);
+    animation: pulse 1.8s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 1; }
+  }
+
+  .hero h1 {
+    font-size: clamp(2.6rem, 6vw, 5rem);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+  }
+  .hero h1 .gradient {
+    background: linear-gradient(135deg, #5a7cff 0%, #b659ff 50%, #40e0d0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    display: block;
+  }
+  .hero p.lead {
+    font-size: clamp(1rem, 1.8vw, 1.25rem);
+    color: var(--fg-dim);
+    max-width: 780px;
+    margin-bottom: 2.5rem;
+  }
+  .cta-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn {
+    padding: 0.9rem 2rem;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    transition: all 0.25s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white;
+    box-shadow: 0 10px 30px rgba(90, 124, 255, 0.35);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(90, 124, 255, 0.5); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--fg-dim); }
+
+  .hero-metrics {
+    margin-top: 4rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 2rem;
+    max-width: 900px;
+    width: 100%;
+  }
+  .metric {
+    text-align: center;
+    padding: 1rem;
+  }
+  .metric-value {
+    font-size: 2.4rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent-3));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .metric-label {
+    color: var(--fg-dim);
+    font-size: 0.88rem;
+    margin-top: 0.4rem;
+  }
+
+  /* ---------- Pain points ---------- */
+  .pain-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+  }
+  .pain-card {
+    padding: 1.8rem;
+    background: linear-gradient(135deg, rgba(255, 77, 109, 0.08), rgba(255, 77, 109, 0.02));
+    border: 1px solid rgba(255, 77, 109, 0.2);
+    border-radius: 14px;
+  }
+  .pain-card h3 {
+    color: var(--danger);
+    font-size: 1.1rem;
+    margin-bottom: 0.6rem;
+  }
+  .pain-card p {
+    color: var(--fg-dim);
+    font-size: 0.94rem;
+  }
+
+  /* ---------- Core capabilities ---------- */
+  .cap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+  .cap-card {
+    padding: 2rem;
+    background: linear-gradient(180deg, var(--bg-soft), rgba(11, 16, 39, 0.4));
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s, border-color 0.3s;
+  }
+  .cap-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(90, 124, 255, 0.4);
+  }
+  .cap-card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    opacity: 0.8;
+  }
+  .cap-icon {
+    font-size: 2.2rem;
+    margin-bottom: 1rem;
+  }
+  .cap-card h3 {
+    font-size: 1.2rem;
+    margin-bottom: 0.8rem;
+  }
+  .cap-card p {
+    color: var(--fg-dim);
+    font-size: 0.93rem;
+  }
+  .cap-tag {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.25rem 0.7rem;
+    font-size: 0.76rem;
+    border-radius: 999px;
+    background: rgba(64, 224, 208, 0.12);
+    color: var(--accent-3);
+    border: 1px solid rgba(64, 224, 208, 0.25);
+  }
+
+  /* ---------- Flow diagram ---------- */
+  .flow-wrap {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    position: relative;
+  }
+  .flow-step {
+    padding: 1.8rem 1.2rem;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    text-align: center;
+    position: relative;
+    margin: 0 0.6rem;
+  }
+  .flow-step .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white;
+    font-weight: 800;
+    margin-bottom: 1rem;
+  }
+  .flow-step h4 {
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+  }
+  .flow-step p {
+    color: var(--fg-dim);
+    font-size: 0.85rem;
+  }
+  .flow-step + .flow-step::before {
+    content: "→";
+    position: absolute;
+    left: -1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--accent);
+    font-size: 1.4rem;
+    font-weight: 700;
+  }
+  @media (max-width: 900px) {
+    .flow-wrap { grid-template-columns: 1fr; gap: 1rem; }
+    .flow-step + .flow-step::before { display: none; }
+  }
+
+  /* ---------- Scenarios ---------- */
+  .scn-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.25rem;
+  }
+  .scn {
+    padding: 1.6rem;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(11, 16, 39, 0.5);
+  }
+  .scn h4 { font-size: 1.05rem; margin-bottom: 0.5rem; }
+  .scn p { font-size: 0.9rem; color: var(--fg-dim); }
+
+  /* ---------- Compare table ---------- */
+  .cmp-wrap {
+    overflow-x: auto;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+  }
+  table.cmp {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.94rem;
+    min-width: 680px;
+  }
+  table.cmp th, table.cmp td {
+    padding: 1rem 1.2rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  table.cmp th {
+    background: var(--bg-soft);
+    color: var(--fg);
+    font-weight: 700;
+  }
+  table.cmp td { color: var(--fg-dim); }
+  table.cmp td.yes { color: var(--accent-3); font-weight: 600; }
+  table.cmp td.no { color: var(--danger); }
+
+  /* ---------- CTA final ---------- */
+  .cta-band {
+    padding: 5rem 2rem;
+    text-align: center;
+    background: linear-gradient(135deg, rgba(90, 124, 255, 0.15), rgba(182, 89, 255, 0.15));
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .cta-band h2 { margin-bottom: 1rem; }
+  .cta-band p { color: var(--fg-dim); margin-bottom: 2rem; max-width: 600px; margin-left: auto; margin-right: auto; }
+
+  /* ---------- Footer ---------- */
+  footer {
+    padding: 2.5rem 2rem;
+    text-align: center;
+    color: var(--fg-dim);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border);
+  }
+  footer .brand { color: var(--fg); font-weight: 700; }
+
+  /* ---------- Mobile ---------- */
+  @media (max-width: 700px) {
+    .nav-links { display: none; }
+    section { padding: 4rem 1.2rem; }
+    .hero { min-height: 80vh; }
+  }
+</style>
+</head>
+
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo">寰宇OS / HuanYu OS</div>
+    <ul class="nav-links">
+      <li><a href="#why">为什么</a></li>
+      <li><a href="#capabilities">核心能力</a></li>
+      <li><a href="#flow">防护流程</a></li>
+      <li><a href="#scenarios">应用场景</a></li>
+      <li><a href="#compare">对比</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- Hero -->
+<header class="hero">
+  <span class="badge">后量子加密 · 权重级无损水印 · 首发溯源</span>
+  <h1>
+    <span class="gradient">寰宇OS</span>
+    影视IP全栈解决方案
+  </h1>
+  <p class="lead">
+    为影视源文件筑起四层防线：<strong>加密锁死</strong>下载转发、<strong>隐式指纹</strong>嵌入每份副本、
+    <strong>DNA身份证</strong>被盗即触发、<strong>首发溯源</strong>追到平台与IP——让盗版无处藏身。
+  </p>
+  <div class="cta-row">
+    <a href="#capabilities" class="btn btn-primary">▶ 了解能力</a>
+    <a href="#flow" class="btn btn-ghost">查看防护流程</a>
+  </div>
+
+  <div class="hero-metrics">
+    <div class="metric">
+      <div class="metric-value">4</div>
+      <div class="metric-label">层防线</div>
+    </div>
+    <div class="metric">
+      <div class="metric-value">ML-KEM</div>
+      <div class="metric-label">抗量子加密</div>
+    </div>
+    <div class="metric">
+      <div class="metric-value">DCT</div>
+      <div class="metric-label">频域隐式水印</div>
+    </div>
+    <div class="metric">
+      <div class="metric-value">100%</div>
+      <div class="metric-label">上链存证</div>
+    </div>
+  </div>
+</header>
+
+<!-- Why -->
+<section id="why">
+  <h2>影视IP正在被<span class="highlight">静默窃取</span></h2>
+  <p class="section-sub">
+    传统加密只防明面下载，面对高级木马、爬虫、内鬼，几乎毫无抵抗力——
+    而盗版一旦上传，就再也找不到首发源头。
+  </p>
+  <div class="pain-grid">
+    <div class="pain-card">
+      <h3>⚠️ 下载即失控</h3>
+      <p>源文件落到用户本地，再强的 DRM 也可能被破解；转发、录屏、二压分分钟完成。</p>
+    </div>
+    <div class="pain-card">
+      <h3>⚠️ 爬虫批量抓取</h3>
+      <p>CDN 接口被爬虫扫描，未授权终端批量拉取，流量账单暴涨，内容泄露却无感。</p>
+    </div>
+    <div class="pain-card">
+      <h3>⚠️ 高级木马渗透</h3>
+      <p>端侧被植入间谍软件后，明文副本被后台外传，传统防御完全失效。</p>
+    </div>
+    <div class="pain-card">
+      <h3>⚠️ 盗版无法追溯</h3>
+      <p>短视频平台满屏盗版，却找不到是哪家分发渠道泄露的；维权举证链路断裂。</p>
+    </div>
+  </div>
+</section>
+
+<!-- Capabilities -->
+<section id="capabilities">
+  <h2>四层防线，一站解决</h2>
+  <p class="section-sub">从加密存储、分发指纹、被盗反制到溯源举证——寰宇OS 是为影视IP量身打造的全栈产权操作系统。</p>
+
+  <div class="cap-grid">
+    <div class="cap-card">
+      <div class="cap-icon">🔐</div>
+      <h3>第一道：后量子加密锁</h3>
+      <p>ML-KEM-768 加密源文件，持时效令牌才能解密。下载下来是密文，无法播放、无法转发、爬虫抓到也是噪声数据。</p>
+      <span class="cap-tag">抗量子 · 一次性令牌 · IP绑定</span>
+    </div>
+
+    <div class="cap-card">
+      <div class="cap-icon">🧬</div>
+      <h3>第二道：隐式指纹水印</h3>
+      <p>基于 DCT 频域变换，每份分发副本嵌入唯一指纹（平台+IP+用户+时间）。肉眼不可见，PSNR &gt; 35dB，压缩裁剪仍可提取。</p>
+      <span class="cap-tag">DCT频域 · 每副本唯一 · 鲁棒性强</span>
+    </div>
+
+    <div class="cap-card">
+      <div class="cap-icon">🛡️</div>
+      <h3>第三道：DNA身份证反制</h3>
+      <p>检测到木马窃取、完整性异常、爬虫特征后自动触发：红色版权水印铺满画面，盗版副本丧失商业价值，反成维权证据。</p>
+      <span class="cap-tag">自动触发 · 全屏覆盖 · 不可去除</span>
+    </div>
+
+    <div class="cap-card">
+      <div class="cap-icon">🔍</div>
+      <h3>第四道：首发平台溯源</h3>
+      <p>从盗版文件中提取隐式指纹，精确匹配分发数据库，秒级定位首发平台、首个 IP、首个分发账户，生成可上法庭的溯源报告。</p>
+      <span class="cap-tag">精准+模糊匹配 · 哈希链存证</span>
+    </div>
+
+    <div class="cap-card">
+      <div class="cap-icon">⛓️</div>
+      <h3>不可篡改存证</h3>
+      <p>加密、分发、访问、溯源每一个环节自动上链，哈希链结构使得任何篡改都会级联失效，给司法举证提供时间戳铁证。</p>
+      <span class="cap-tag">SHA-256链式 · 全程审计</span>
+    </div>
+
+    <div class="cap-card">
+      <div class="cap-icon">📋</div>
+      <h3>电子权属证书</h3>
+      <p>ML-DSA 后量子签名的 JSON 证书，内嵌水印元数据、原始哈希、签发时间，作为影视IP的身份文件，一键下载、一键验签。</p>
+      <span class="cap-tag">ML-DSA签名 · 法律效力</span>
+    </div>
+  </div>
+</section>
+
+<!-- Flow -->
+<section id="flow">
+  <h2>完整防护流程</h2>
+  <p class="section-sub">从源文件进库到盗版溯源维权，寰宇OS 覆盖影视IP的全生命周期。</p>
+
+  <div class="flow-wrap">
+    <div class="flow-step">
+      <div class="num">1</div>
+      <h4>入库加密</h4>
+      <p>源文件入库 → ML-KEM 加密 → 写入完整性快照 → 自动上链</p>
+    </div>
+    <div class="flow-step">
+      <div class="num">2</div>
+      <h4>分发嵌指纹</h4>
+      <p>每份副本嵌入唯一 DCT 隐式水印（平台+IP+用户+时间），登记分发记录</p>
+    </div>
+    <div class="flow-step">
+      <div class="num">3</div>
+      <h4>访问校验</h4>
+      <p>时效令牌 + IP 绑定 + 爬虫 UA 识别，非授权请求拒绝并触发反制</p>
+    </div>
+    <div class="flow-step">
+      <div class="num">4</div>
+      <h4>泄露溯源</h4>
+      <p>发现盗版 → 提取指纹 → 比对数据库 → 定位首发源 → 出具维权报告</p>
+    </div>
+  </div>
+</section>
+
+<!-- Scenarios -->
+<section id="scenarios">
+  <h2>谁在使用寰宇OS</h2>
+  <p class="section-sub">影视内容链路上，任何对「源文件防泄露、副本可溯源」有要求的角色，都是寰宇OS的目标客户。</p>
+
+  <div class="scn-grid">
+    <div class="scn">
+      <h4>🎬 影视制作公司</h4>
+      <p>后期母盘、未公映样片防泄露，事前加密、事后溯源，避免"未播先盗"。</p>
+    </div>
+    <div class="scn">
+      <h4>📡 版权发行方</h4>
+      <p>对接多家平台时，每家拿到的是带不同指纹的副本；一旦某路径泄露，立刻锁定责任方。</p>
+    </div>
+    <div class="scn">
+      <h4>🎞️ 流媒体平台</h4>
+      <p>对接源文件入库 + 下发加密 + 爬虫反制，降低CDN被爬抓取、抵御端侧木马窃取。</p>
+    </div>
+    <div class="scn">
+      <h4>📺 广电/电视台</h4>
+      <p>未播节目在内网流转的访问审计、外发文件的权属标识，构建闭环的内容安全。</p>
+    </div>
+    <div class="scn">
+      <h4>🏛️ 版权维权律所</h4>
+      <p>提供可作为司法证据的溯源报告，包含哈希链时间戳、指纹匹配记录、分发元数据。</p>
+    </div>
+    <div class="scn">
+      <h4>🎮 独立创作者</h4>
+      <p>个人作品上传前一键加水印+存证，被搬运后可直接出具维权依据，不再有口难辩。</p>
+    </div>
+  </div>
+</section>
+
+<!-- Compare -->
+<section id="compare">
+  <h2>寰宇OS vs 传统方案</h2>
+  <p class="section-sub">传统 DRM 只管"不让看"，寰宇OS 还管"被盗后谁负责"。</p>
+
+  <div class="cmp-wrap">
+    <table class="cmp">
+      <thead>
+        <tr>
+          <th>能力</th>
+          <th>传统 DRM</th>
+          <th>普通水印</th>
+          <th>寰宇OS</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>防下载/防转发</td><td class="yes">✓</td><td class="no">✗</td><td class="yes">✓ 抗量子</td></tr>
+        <tr><td>每副本唯一指纹</td><td class="no">✗</td><td>部分</td><td class="yes">✓ DCT频域</td></tr>
+        <tr><td>被盗触发反制</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓ DNA身份证</td></tr>
+        <tr><td>爬虫特征识别</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td></tr>
+        <tr><td>首发源定位</td><td class="no">✗</td><td>模糊</td><td class="yes">✓ 精确到IP</td></tr>
+        <tr><td>哈希链存证</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td></tr>
+        <tr><td>抗量子破解</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓ ML-KEM</td></tr>
+        <tr><td>司法证据效力</td><td class="no">弱</td><td class="no">弱</td><td class="yes">✓ 签名+时间戳</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta-band">
+  <h2>为每一帧画面<span class="highlight">签发身份证</span></h2>
+  <p>寰宇OS 让影视IP的每一次流转都可追溯、每一次盗用都可定罪。</p>
+  <div class="cta-row">
+    <a href="#capabilities" class="btn btn-primary">🚀 立刻了解</a>
+    <a href="#flow" class="btn btn-ghost">查看流程</a>
+  </div>
+</div>
+
+<footer>
+  <div><span class="brand">寰宇OS / HuanYu OS</span> · 影视IP全栈解决方案</div>
+  <div style="margin-top: 0.6rem;">基于 ModelShield 模盾核心 · 后量子加密 · DCT水印 · 哈希链存证</div>
+</footer>
+
+</body>
+</html>

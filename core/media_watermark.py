@@ -288,6 +288,78 @@ def generate_fingerprint(platform: str, ip_address: str, user_id: str = "") -> s
     return raw
 
 
+def apply_counter_watermark_to_video(
+    input_path: str,
+    output_path: str,
+    owner_text: str,
+    reason: str,
+    max_frames: int = 240,
+) -> dict:
+    """
+    反制：对盗版副本铺满 DNA 身份证水印（每帧叠红色平铺 + 顶部警示条 + 触发原因）。
+
+    Args:
+        input_path: 被盗的源视频
+        output_path: 输出的"带反制水印副本"
+        owner_text: 版权所有者名称
+        reason: 触发反制的原因（"suspicious_user_agent" / "ip_mismatch" 等）
+        max_frames: 最多处理帧数，演示控制时长
+    Returns:
+        处理结果统计
+    """
+    cap = cv2.VideoCapture(input_path)
+    if not cap.isOpened():
+        raise ValueError(f"无法打开视频：{input_path}")
+
+    fps = int(cap.get(cv2.CAP_PROP_FPS)) or 24
+    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(output_path, fourcc, fps, (w, h))
+
+    reason_label = {
+        "suspicious_user_agent": "BOT / SCRAPER DETECTED",
+        "ip_mismatch": "TOKEN HIJACKED (IP MISMATCH)",
+        "integrity_broken": "FILE TAMPERED",
+        "rate_limit": "ABNORMAL ACCESS RATE",
+        "expired": "EXPIRED TOKEN",
+    }.get(reason, "UNAUTHORIZED ACCESS")
+
+    processed = 0
+    for _ in range(min(total_frames, max_frames)):
+        ret, frame = cap.read()
+        if not ret:
+            break
+        # 平铺红色 DNA 水印
+        frame = apply_visible_watermark(frame, owner_text, opacity=0.35, tile=True)
+        # 顶部红色警示条
+        cv2.rectangle(frame, (0, 0), (w, 40), (0, 0, 180), -1)
+        cv2.putText(
+            frame,
+            f"PIRATED COPY  -  {reason_label}",
+            (12, 28),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
+        out.write(frame)
+        processed += 1
+
+    cap.release()
+    out.release()
+    return {
+        "frames_processed": processed,
+        "fps": fps,
+        "resolution": f"{w}x{h}",
+        "reason": reason,
+        "owner": owner_text,
+    }
+
+
 def compare_fingerprints(extracted: str, candidates: list) -> list:
     """
     比对指纹，找到最匹配的分发记录
